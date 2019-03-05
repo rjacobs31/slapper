@@ -1,6 +1,10 @@
 #[macro_use]
 extern crate clap;
 
+extern crate serde;
+
+mod hit;
+
 fn main() {
     let matches = clap_app!(slapper =>
         (version: "0.1.0")

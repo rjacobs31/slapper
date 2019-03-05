@@ -3,7 +3,10 @@ extern crate clap;
 
 extern crate serde;
 
+use url::Url;
+
 mod hit;
+use hit::{Project, Environment, Endpoint};
 
 fn main() {
     let matches = clap_app!(slapper =>
@@ -23,4 +26,37 @@ fn main() {
             (@arg DATA_FILE: --("data-file") +takes_value conflicts_with[DATA] "File to read data from")
         )
     ).get_matches();
+
+    if let Some(matches) = matches.subcommand_matches("hit") {
+        let project_name = matches.value_of("PROJECT").unwrap();
+        let environment_name = matches.value_of("ENVIRONMENT").unwrap();
+        let endpoint_name = matches.value_of("ENDPOINT").unwrap();
+
+        let result = hit::do_request(get_projects().as_slice(), project_name, environment_name, endpoint_name);
+        println!("{}", result);
+    }
+}
+
+fn get_projects<'a>() -> Vec<Project<'a>> {
+    vec![
+        Project{
+            name: "project",
+            auth: None,
+            environments: vec![
+                Environment{
+                    name: "dev",
+                    auth: None,
+                    base_url: Url::parse("http://localhost:8000").unwrap(),
+                }
+            ],
+            endpoints: vec![
+                Endpoint{
+                    name: "some_object",
+                    auth: None,
+                    method: "GET",
+                    url: "/"
+                }
+            ],
+        }
+    ]
 }

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use reqwest;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use url::Url;
 
 #[derive(Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub enum Auth<'a> {
         grant_type: &'a str,
 
         resource: &'a str,
-        
+
         #[serde(skip_serializing_if = "Option::is_none")]
         scopes: Option<&'a str>,
     },
@@ -31,7 +31,7 @@ pub struct Endpoint<'a> {
 
     #[serde(default = "method_default", skip_serializing_if = "skip_if_get")]
     pub method: &'a str,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<Auth<'a>>,
 }
@@ -73,9 +73,11 @@ pub fn do_request(
     env_name: &str,
     endpoint_name: &str,
 ) -> String {
+    use http::header::CONTENT_TYPE;
     use reqwest::{Client, Method};
     use std::str::FromStr;
 
+    // TODO Handle errors.
     let project = projects.iter().find(|&p| p.name == project_name).unwrap();
     let environment = project
         .environments
@@ -124,7 +126,12 @@ pub fn do_request(
     };
 
     let mut response = request.send().unwrap();
-    response.text().unwrap()
+    match response.headers().get(CONTENT_TYPE) {
+        Some(val) if val.to_str().unwrap().ends_with("json") => {
+            serde_json::to_string_pretty(&response.json::<serde_json::Value>().unwrap()).unwrap()
+        }
+        _ => response.text().unwrap(),
+    }
 }
 
 fn get_client_credentials_token<'a>(
@@ -137,7 +144,6 @@ fn get_client_credentials_token<'a>(
     use reqwest::Client;
     use std::collections::HashMap;
 
-    let client = Client::new();
     let params = &[
         ("client_id", client_id),
         ("client_secret", client_secret),
@@ -145,9 +151,16 @@ fn get_client_credentials_token<'a>(
         ("resource", resource),
     ];
 
-    let mut response = client.post(authority).form(params).send().unwrap();
-    let result: HashMap<String, String> = response.json().unwrap();
-    result.get("token").map(|t| (*t).clone())
+    // TODO Handle errors.
+    Client::new()
+        .post(authority)
+        .form(params)
+        .send()
+        .unwrap()
+        .json::<HashMap<String, String>>()
+        .unwrap()
+        .get("access_token")
+        .map(|t| (*t).clone())
 }
 
 fn url_replace<'a>(url: &'a str, values: HashMap<String, String>) -> Result<&'a str, &'a str> {

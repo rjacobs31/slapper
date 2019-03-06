@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -8,10 +9,16 @@ pub enum Auth<'a> {
     Inherit,
     ClientCredentials {
         authority: &'a str,
+
         client_id: &'a str,
+
         client_secret: &'a str,
+
         grant_type: &'a str,
+
         resource: &'a str,
+        
+        #[serde(skip_serializing_if = "Option::is_none")]
         scopes: Option<&'a str>,
     },
 }
@@ -19,24 +26,44 @@ pub enum Auth<'a> {
 #[derive(Serialize, Deserialize)]
 pub struct Endpoint<'a> {
     pub name: &'a str,
+
     pub url: &'a str,
+
+    #[serde(default = "method_default", skip_serializing_if = "skip_if_get")]
     pub method: &'a str,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<Auth<'a>>,
+}
+
+const fn method_default() -> &'static str {
+    "GET"
+}
+
+fn skip_if_get(value: &str) -> bool {
+    value.is_empty() || value.to_uppercase() == "GET"
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Environment<'a> {
     pub name: &'a str,
+
     #[serde(with = "url_serde")]
     pub base_url: Url,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<Auth<'a>>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Project<'a> {
     pub name: &'a str,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<Auth<'a>>,
+
     pub environments: Vec<Environment<'a>>,
+
     pub endpoints: Vec<Endpoint<'a>>,
 }
 
@@ -121,6 +148,13 @@ fn get_client_credentials_token<'a>(
     let mut response = client.post(authority).form(params).send().unwrap();
     let result: HashMap<String, String> = response.json().unwrap();
     result.get("token").map(|t| (*t).clone())
+}
+
+fn url_replace<'a>(url: &'a str, values: HashMap<String, String>) -> Result<&'a str, &'a str> {
+    match url.find(|c| c == '{') {
+        None => Ok(url),
+        Some(first_idx) => Ok(""),
+    }
 }
 
 mod url_serde {

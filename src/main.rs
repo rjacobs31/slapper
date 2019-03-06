@@ -34,7 +34,12 @@ fn main() {
             let endpoint_name = matches.value_of("ENDPOINT").unwrap();
             let projects = config::get_projects().projects;
 
-            let result = hit::do_request(projects.as_slice(), project_name, environment_name, endpoint_name);
+            let result = hit::do_request(
+                projects.as_slice(),
+                project_name,
+                environment_name,
+                endpoint_name,
+            );
             println!("{}", result);
         }
         ("write", _) => {
@@ -43,13 +48,13 @@ fn main() {
             println!("{}", serialized);
         }
         _ => {}
-        }
+    }
 }
 
 mod config {
-    use serde::{Serialize, Deserialize};
+    use crate::hit::{Auth, Endpoint, Environment, Project};
+    use serde::{Deserialize, Serialize};
     use url::Url;
-    use crate::hit::{Project, Environment, Endpoint};
 
     #[derive(Serialize, Deserialize)]
     pub struct Config<'a> {

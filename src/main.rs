@@ -1,12 +1,7 @@
 #[macro_use]
 extern crate clap;
 
-extern crate serde;
-
-use url::Url;
-
 mod hit;
-use hit::{Project, Environment, Endpoint};
 
 fn main() {
     let matches = clap_app!(slapper =>
@@ -14,7 +9,7 @@ fn main() {
         (author: "R. Jacobs")
         (about: "Hits endpoints")
         (@arg CONFIG: -c --config +takes_value "Sets a custom config file")
-        (@subcommand hit => 
+        (@subcommand hit =>
             (about: "Hits an endpoint in a specific project and environment")
             (@arg PROJECT: +required "The project to load")
             (@arg ENVIRONMENT: +required "The environment to load")
@@ -25,38 +20,85 @@ fn main() {
             (@arg DATA: -d --data +takes_value "The body of the request")
             (@arg DATA_FILE: --("data-file") +takes_value conflicts_with[DATA] "File to read data from")
         )
+        (@subcommand write =>
+            (about: "Writes a config file")
+        )
     ).get_matches();
 
-    if let Some(matches) = matches.subcommand_matches("hit") {
-        let project_name = matches.value_of("PROJECT").unwrap();
-        let environment_name = matches.value_of("ENVIRONMENT").unwrap();
-        let endpoint_name = matches.value_of("ENDPOINT").unwrap();
+    let config_file = matches.value_of("CONFIG").unwrap_or("slapper.toml");
 
-        let result = hit::do_request(get_projects().as_slice(), project_name, environment_name, endpoint_name);
-        println!("{}", result);
-    }
+    match matches.subcommand() {
+        ("hit", Some(matches)) => {
+            let project_name = matches.value_of("PROJECT").unwrap();
+            let environment_name = matches.value_of("ENVIRONMENT").unwrap();
+            let endpoint_name = matches.value_of("ENDPOINT").unwrap();
+            let projects = config::get_projects().projects;
+
+            let result = hit::do_request(projects.as_slice(), project_name, environment_name, endpoint_name);
+            println!("{}", result);
+        }
+        ("write", _) => {
+            let projects = config::get_projects();
+            let serialized = serde_json::to_string_pretty(&projects).unwrap();
+            println!("{}", serialized);
+        }
+        _ => {}
+        }
 }
 
-fn get_projects<'a>() -> Vec<Project<'a>> {
-    vec![
-        Project{
-            name: "project",
-            auth: None,
-            environments: vec![
-                Environment{
-                    name: "dev",
+mod config {
+    use serde::{Serialize, Deserialize};
+    use url::Url;
+    use crate::hit::{Project, Environment, Endpoint};
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Config<'a> {
+        #[serde(borrow)]
+        pub projects: Vec<Project<'a>>,
+    }
+
+    pub fn get_projects<'a>() -> Config<'a> {
+        Config {
+            projects: vec![
+                Project{
+                    name: "project1",
                     auth: None,
-                    base_url: Url::parse("http://localhost:8000").unwrap(),
-                }
-            ],
-            endpoints: vec![
-                Endpoint{
-                    name: "some_object",
+                    environments: vec![
+                        Environment{
+                            name: "dev",
+                            auth: None,
+                            base_url: Url::parse("http://localhost:8000").unwrap(),
+                        }
+                    ],
+                    endpoints: vec![
+                        Endpoint{
+                            name: "some_object",
+                            auth: None,
+                            method: "GET",
+                            url: "/"
+                        }
+                    ],
+                },
+                Project{
+                    name: "project2",
                     auth: None,
-                    method: "GET",
-                    url: "/"
+                    environments: vec![
+                        Environment{
+                            name: "dev",
+                            auth: None,
+                            base_url: Url::parse("http://localhost:8000").unwrap(),
+                        }
+                    ],
+                    endpoints: vec![
+                        Endpoint{
+                            name: "some_other_object",
+                            auth: None,
+                            method: "POST",
+                            url: "/"
+                        }
+                    ],
                 }
-            ],
+            ]
         }
-    ]
+    }
 }

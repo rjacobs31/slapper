@@ -75,6 +75,7 @@ pub fn do_request(
 ) -> String {
     use http::header::CONTENT_TYPE;
     use reqwest::{Client, Method};
+    use serde_json::Value;
     use std::str::FromStr;
 
     // TODO Handle errors.
@@ -127,9 +128,11 @@ pub fn do_request(
 
     let mut response = request.send().unwrap();
     match response.headers().get(CONTENT_TYPE) {
-        Some(val) if val.to_str().unwrap().ends_with("json") => {
-            serde_json::to_string_pretty(&response.json::<serde_json::Value>().unwrap()).unwrap()
-        }
+        Some(val) if val.to_str().unwrap().contains("json") => response
+            .json::<Value>()
+            .map(|x| serde_json::to_string_pretty(&x))
+            .unwrap()
+            .unwrap(),
         _ => response.text().unwrap(),
     }
 }

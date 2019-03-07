@@ -166,11 +166,50 @@ fn get_client_credentials_token<'a>(
         .map(|t| (*t).clone())
 }
 
-fn url_replace<'a>(url: &'a str, values: HashMap<String, String>) -> Result<&'a str, &'a str> {
-    match url.find(|c| c == '{') {
-        None => Ok(url),
-        Some(first_idx) => Ok(""),
+fn url_replace<'a>(url: &'a str, values: HashMap<String, String>) -> Result<String, &'a str> {
+    use std::fmt::Write;
+
+    let find_interest = |input: &str| input.find(|x| x == '\\' || x == '{');
+    let pos = find_interest(url);
+    if pos.is_none() {
+        return Ok(url.to_owned());
     }
+
+    let mut generated_url = String::new();
+    let (prefix, mut remainder) = url.split_at(pos.unwrap());
+    generated_url.write_str(prefix).unwrap();
+
+    while !remainder.is_empty() {
+        if remainder.starts_with(r"\{") {
+            generated_url.push('{');
+            remainder = remainder.split_at(br"\{".len()).1;
+        } else if remainder.starts_with('{') {
+            remainder = remainder.split_at(br"{".len()).1;
+            if let Some(pos) = remainder.find('}') {
+                let res = remainder.split_at(pos);
+                let name = res.0;
+                let val = values.get(&name.to_owned())
+                    .expect(format!("Could not find value: {}", name)
+                    .as_str());
+                generated_url.write_str(val).unwrap();
+                remainder = remainder.split_at(name.len() + br"}".len()).1;
+            } else {
+                return Err("Unterminated variable tag");
+            }
+        } else {
+            let pos = find_interest(url);
+            if pos.is_none() {
+                generated_url.write_str(remainder).unwrap();
+                break;
+            }
+
+            let res = url.split_at(pos.unwrap());
+            let prefix = res.0;
+            remainder = res.1;
+            generated_url.write_str(prefix).unwrap();
+        }
+    }
+    Ok(generated_url)
 }
 
 mod url_serde {

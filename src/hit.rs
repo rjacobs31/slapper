@@ -5,39 +5,39 @@ use url::Url;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", content = "values")]
-pub enum Auth<'a> {
+pub enum Auth {
     Inherit,
     ClientCredentials {
-        authority: &'a str,
+        authority: String,
 
-        client_id: &'a str,
+        client_id: String,
 
-        client_secret: &'a str,
+        client_secret: String,
 
-        grant_type: &'a str,
+        grant_type: String,
 
-        resource: &'a str,
+        resource: String,
 
         #[serde(skip_serializing_if = "Option::is_none")]
-        scopes: Option<&'a str>,
+        scopes: Option<String>,
     },
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Endpoint<'a> {
-    pub name: &'a str,
+pub struct Endpoint {
+    pub name: String,
 
     pub url: String,
 
     #[serde(default = "method_default", skip_serializing_if = "skip_if_get")]
-    pub method: &'a str,
+    pub method: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth<'a>>,
+    pub auth: Option<Auth>,
 }
 
-const fn method_default() -> &'static str {
-    "GET"
+fn method_default() -> String {
+    "GET".into()
 }
 
 fn skip_if_get(value: &str) -> bool {
@@ -45,26 +45,26 @@ fn skip_if_get(value: &str) -> bool {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Environment<'a> {
-    pub name: &'a str,
+pub struct Environment {
+    pub name: String,
 
     #[serde(with = "url_serde")]
     pub base_url: Url,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth<'a>>,
+    pub auth: Option<Auth>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Project<'a> {
-    pub name: &'a str,
+pub struct Project {
+    pub name: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth<'a>>,
+    pub auth: Option<Auth>,
 
-    pub environments: Vec<Environment<'a>>,
+    pub environments: Vec<Environment>,
 
-    pub endpoints: Vec<Endpoint<'a>>,
+    pub endpoints: Vec<Endpoint>,
 }
 
 pub fn do_request(
@@ -102,7 +102,7 @@ pub fn do_request(
     };
 
     let url = environment.base_url.join(&endpoint.url).unwrap();
-    let method = Method::from_str(endpoint.method).unwrap_or(Method::default());
+    let method = Method::from_str(&endpoint.method).unwrap_or(Method::default());
     let client = Client::new();
 
     let mut request = client.request(method, url);

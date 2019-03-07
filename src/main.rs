@@ -57,48 +57,47 @@ mod config {
     use url::Url;
 
     #[derive(Serialize, Deserialize)]
-    pub struct Config<'a> {
-        #[serde(borrow)]
-        pub projects: Vec<Project<'a>>,
+    pub struct Config {
+        pub projects: Vec<Project>,
     }
 
-    pub fn get_projects<'a>() -> Config<'a> {
+    pub fn get_projects() -> Config {
         Config {
             projects: vec![
                 Project{
-                    name: "project1",
+                    name: "project1".into(),
                     auth: None,
                     environments: vec![
                         Environment{
-                            name: "dev",
+                            name: "dev".into(),
                             auth: None,
                             base_url: Url::parse("http://localhost:8000").unwrap(),
                         }
                     ],
                     endpoints: vec![
                         Endpoint{
-                            name: "some_object",
+                            name: "some_object".into(),
                             auth: None,
-                            method: "GET",
-                            url: "/"
+                            method: "GET".into(),
+                            url: "/".into()
                         }
                     ],
                 },
                 Project{
-                    name: "project2",
+                    name: "project2".into(),
                     auth: None,
                     environments: vec![
                         Environment{
-                            name: "dev",
+                            name: "dev".into(),
                             auth: None,
                             base_url: Url::parse("http://localhost:8000").unwrap(),
                         }
                     ],
                     endpoints: vec![
                         Endpoint{
-                            name: "some_other_object",
+                            name: "some_other_object".into(),
                             auth: None,
-                            method: "POST",
+                            method: "POST".into(),
                             url: "/".into()
                         }
                     ],

@@ -25,7 +25,7 @@ fn main() {
         )
     ).get_matches();
 
-    let config_file = matches.value_of("CONFIG").unwrap_or("slapper.toml");
+    let _config_file = matches.value_of("CONFIG").unwrap_or("slapper.toml");
 
     match matches.subcommand() {
         ("hit", Some(matches)) => {
@@ -99,7 +99,7 @@ mod config {
                             name: "some_other_object",
                             auth: None,
                             method: "POST",
-                            url: "/"
+                            url: "/".into()
                         }
                     ],
                 }

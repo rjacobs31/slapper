@@ -27,7 +27,7 @@ pub enum Auth<'a> {
 pub struct Endpoint<'a> {
     pub name: &'a str,
 
-    pub url: &'a str,
+    pub url: String,
 
     #[serde(default = "method_default", skip_serializing_if = "skip_if_get")]
     pub method: &'a str,
@@ -99,7 +99,7 @@ pub fn do_request(
         _ => &endpoint.auth,
     };
 
-    let url = environment.base_url.join(endpoint.url).unwrap();
+    let url = environment.base_url.join(&endpoint.url).unwrap();
     let method = Method::from_str(endpoint.method).unwrap_or(Method::default());
     let client = Client::new();
 
@@ -188,9 +188,9 @@ fn url_replace<'a>(url: &'a str, values: HashMap<String, String>) -> Result<Stri
             if let Some(pos) = remainder.find('}') {
                 let res = remainder.split_at(pos);
                 let name = res.0;
-                let val = values.get(&name.to_owned())
-                    .expect(format!("Could not find value: {}", name)
-                    .as_str());
+                let val = values
+                    .get(&name.to_owned())
+                    .expect(format!("Could not find value: {}", name).as_str());
                 generated_url.write_str(val).unwrap();
                 remainder = remainder.split_at(name.len() + br"}".len()).1;
             } else {

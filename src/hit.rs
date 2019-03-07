@@ -77,8 +77,10 @@ pub fn do_request(
     use reqwest::{Client, Method};
     use serde_json::Value;
     use std::str::FromStr;
+    use std::time::Instant;
 
     // TODO Handle errors.
+    let start_time = Instant::now();
     let project = projects.iter().find(|&p| p.name == project_name).unwrap();
     let environment = project
         .environments
@@ -126,7 +128,21 @@ pub fn do_request(
         _ => request,
     };
 
+    let auth_end_time = Instant::now();
     let mut response = request.send().unwrap();
+    let request_end_time = Instant::now();
+    println!(
+        r#"
+============================
+auth duration: {} ms
+request duration: {} ms
+----------------------------
+total: {} ms
+============================"#,
+        auth_end_time.duration_since(start_time).as_millis(),
+        request_end_time.duration_since(auth_end_time).as_millis(),
+        request_end_time.duration_since(start_time).as_millis()
+    );
     match response.headers().get(CONTENT_TYPE) {
         Some(val) if val.to_str().unwrap().contains("json") => response
             .json::<Value>()

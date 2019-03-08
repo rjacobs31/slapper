@@ -2,6 +2,7 @@
 extern crate clap;
 
 mod hit;
+mod parse;
 
 fn main() {
     let matches = clap_app!(slapper =>
@@ -19,6 +20,7 @@ fn main() {
             (@arg MEDIA: --media +takes_value "The media type of the request")
             (@arg DATA: -d --data +takes_value "The body of the request")
             (@arg DATA_FILE: --("data-file") +takes_value conflicts_with[DATA] "File to read data from")
+            (@arg URL_VALUES: ... "Variable values to pass to parsed URL")
         )
         (@subcommand write =>
             (about: "Writes a config file")
@@ -32,13 +34,15 @@ fn main() {
             let project_name = matches.value_of("PROJECT").unwrap();
             let environment_name = matches.value_of("ENVIRONMENT").unwrap();
             let endpoint_name = matches.value_of("ENDPOINT").unwrap();
+            let url_values = matches.values_of("URL_VALUES").unwrap_or_default();
             let conf = config::get_projects();
 
+            let project = &conf.projects[project_name];
             let result = hit::do_request(
-                &conf.projects,
-                project_name,
-                environment_name,
-                endpoint_name,
+                project,
+                &project.environments[environment_name],
+                &project.endpoints[endpoint_name],
+                url_values.map(|x| String::from(x)).collect::<Vec<_>>(),
             );
             println!("{}", result);
         }
@@ -76,7 +80,7 @@ mod config {
                             String::from("dev"),
                             Environment::new(Url::parse("http://localhost:8000").unwrap()),
                         )],
-                        vec![(String::from("some_object"), Endpoint::new("/"))],
+                        vec![(String::from("some_object"), Endpoint::new("/{blah}"))],
                     ),
                 ),
                 (

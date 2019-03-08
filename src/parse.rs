@@ -99,7 +99,12 @@ impl SubstitutingUrl {
         Ok(result.into())
     }
 
-    pub fn sub_by_index(&self, values: &[String]) -> Result<Cow<str>, SubstitutionError> {
+    pub fn sub_by_index<I>(&self, values: I) -> Result<Cow<str>, SubstitutionError>
+    where
+        I: IntoIterator<Item = String>,
+    {
+        use std::iter::FromIterator;
+
         let var_count = self
             .segments
             .iter()
@@ -108,7 +113,8 @@ impl SubstitutingUrl {
                 _ => false,
             })
             .count();
-        let val_count = values.iter().count();
+        let values = Vec::from_iter(values);
+        let val_count = values.len();
         if val_count < var_count {
             return Err(SubstitutionError::WrongNumberVariables {
                 expected: var_count,

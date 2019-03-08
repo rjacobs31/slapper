@@ -122,12 +122,16 @@ impl Default for Project {
     }
 }
 
-pub fn do_request(
-    projects: &HashMap<String, Project>,
-    project_name: &str,
-    env_name: &str,
-    endpoint_name: &str,
-) -> String {
+pub fn do_request<I>(
+    project: &Project,
+    environment: &Environment,
+    endpoint: &Endpoint,
+    url_values: I,
+) -> String
+where
+    I: IntoIterator<Item = String>,
+{
+    use crate::parse::SubstitutingUrl;
     use http::header::CONTENT_TYPE;
     use reqwest::{Client, Method};
     use serde_json::Value;
@@ -136,9 +140,6 @@ pub fn do_request(
 
     // TODO Handle errors.
     let start_time = Instant::now();
-    let project = &projects[project_name];
-    let environment = &project.environments[env_name];
-    let endpoint = &project.endpoints[endpoint_name];
 
     let auth = match endpoint.auth {
         Some(Auth::Inherit) => match environment.auth {
@@ -148,7 +149,15 @@ pub fn do_request(
         _ => &endpoint.auth,
     };
 
-    let url = environment.base_url.join(&endpoint.url_path).unwrap();
+    let parsed_path = SubstitutingUrl::from_str(&endpoint.url_path).expect("could not parse URL");
+    let subbed_path = parsed_path
+        .sub_by_index(url_values)
+        .expect("could not sub variables");
+    println!("{}", subbed_path);
+    let url = environment
+        .base_url
+        .join(&subbed_path)
+        .expect("could not join path to URL");
     let method = Method::from_str(&endpoint.method).unwrap_or_default();
     let client = Client::new();
 

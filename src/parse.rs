@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Write;
+use std::str::FromStr;
 
 enum SubstitutingSegment {
     Plain(String),
@@ -12,23 +13,16 @@ pub struct SubstitutingUrl {
 }
 
 impl SubstitutingUrl {
-    pub fn from_str(input: &str) -> Result<Self, ParseError> {
-        let mut subber = SubstitutingUrl {
-            segments: Vec::new(),
-        };
-        subber.parse(input)?;
-
-        Ok(subber)
-    }
-
     fn parse(&mut self, remainder: &str) -> Result<(), ParseError> {
+        let special_chars = |x: char| x == '\\' || x == '{';
+
         if remainder.is_empty() {
             return Ok(());
         }
 
         if remainder.starts_with(r"\{") {
             let plain_start = r"\".len();
-            if let Some(pos) = find_interest(&remainder[r"\{".len()..]) {
+            if let Some(pos) = &remainder[r"\{".len()..].find(special_chars) {
                 let plain_end = plain_start + pos;
 
                 let plain = &remainder[plain_start..plain_end];
@@ -45,8 +39,8 @@ impl SubstitutingUrl {
             return Ok(());
         }
 
-        if remainder.starts_with("{") {
-            if let Some(pos) = remainder.find("}") {
+        if remainder.starts_with('{') {
+            if let Some(pos) = remainder.find('}') {
                 let (name_start, name_end) = ("{".len(), pos);
                 let rem_start = name_end + "}".len();
 
@@ -64,7 +58,7 @@ impl SubstitutingUrl {
             return Err(ParseError::UnterminatedVariableTag);
         }
 
-        if let Some(pos) = find_interest(remainder) {
+        if let Some(pos) = remainder.find(special_chars) {
             let (plain, remainder) = remainder.split_at(pos);
 
             self.segments
@@ -74,7 +68,7 @@ impl SubstitutingUrl {
 
         self.segments
             .push(SubstitutingSegment::Plain(remainder.to_owned()));
-        return Ok(());
+        Ok(())
     }
 
     pub fn sub_by_name(
@@ -148,8 +142,17 @@ impl SubstitutingUrl {
     }
 }
 
-fn find_interest(input: &str) -> Option<usize> {
-    input.find(|x| x == '\\' || x == '{')
+impl FromStr for SubstitutingUrl {
+    type Err = ParseError;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let mut subber = SubstitutingUrl {
+            segments: Vec::new(),
+        };
+        subber.parse(input)?;
+
+        Ok(subber)
+    }
 }
 
 #[cfg(test)]

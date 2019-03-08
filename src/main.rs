@@ -52,7 +52,7 @@ fn main() {
 }
 
 mod config {
-    use crate::hit::{Auth, Endpoint, Environment, Project};
+    use crate::hit::{Endpoint, Environment, Project};
     use serde::{Deserialize, Serialize};
     use url::Url;
 
@@ -64,45 +64,37 @@ mod config {
     pub fn get_projects() -> Config {
         Config {
             projects: vec![
-                Project{
+                Project {
                     name: "project1".into(),
                     auth: None,
-                    environments: vec![
-                        Environment{
-                            name: "dev".into(),
-                            auth: None,
-                            base_url: Url::parse("http://localhost:8000").unwrap(),
-                        }
-                    ],
-                    endpoints: vec![
-                        Endpoint{
-                            name: "some_object".into(),
-                            auth: None,
-                            method: "GET".into(),
-                            url: "/".into()
-                        }
-                    ],
+                    environments: vec![Environment {
+                        name: "dev".into(),
+                        auth: None,
+                        base_url: Url::parse("http://localhost:8000").unwrap(),
+                    }],
+                    endpoints: vec![Endpoint {
+                        name: "some_object".into(),
+                        auth: None,
+                        method: "GET".into(),
+                        url: "/".into(),
+                    }],
                 },
-                Project{
+                Project {
                     name: "project2".into(),
                     auth: None,
-                    environments: vec![
-                        Environment{
-                            name: "dev".into(),
-                            auth: None,
-                            base_url: Url::parse("http://localhost:8000").unwrap(),
-                        }
-                    ],
-                    endpoints: vec![
-                        Endpoint{
-                            name: "some_other_object".into(),
-                            auth: None,
-                            method: "POST".into(),
-                            url: "/".into()
-                        }
-                    ],
-                }
-            ]
+                    environments: vec![Environment {
+                        name: "dev".into(),
+                        auth: None,
+                        base_url: Url::parse("http://localhost:8000").unwrap(),
+                    }],
+                    endpoints: vec![Endpoint {
+                        name: "some_other_object".into(),
+                        auth: None,
+                        method: "POST".into(),
+                        url: "/".into(),
+                    }],
+                },
+            ],
         }
     }
 }

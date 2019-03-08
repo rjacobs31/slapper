@@ -101,7 +101,7 @@ pub fn do_request(
     };
 
     let url = environment.base_url.join(&endpoint.url).unwrap();
-    let method = Method::from_str(&endpoint.method).unwrap_or(Method::default());
+    let method = Method::from_str(&endpoint.method).unwrap_or_default();
     let client = Client::new();
 
     let mut request = client.request(method, url);

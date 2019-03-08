@@ -1,5 +1,2 @@
-#[macro_use]
-extern crate clap;
-
-mod hit;
-mod parse;
+pub mod hit;
+pub mod parse;

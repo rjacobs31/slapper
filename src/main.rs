@@ -4,6 +4,9 @@ extern crate clap;
 mod hit;
 mod parse;
 
+use std::fs::File;
+use std::io::Write;
+
 fn main() {
     let matches = clap_app!(slapper =>
         (version: "0.1.0")
@@ -27,7 +30,7 @@ fn main() {
         )
     ).get_matches();
 
-    let _config_file = matches.value_of("CONFIG").unwrap_or("slapper.toml");
+    let config_file = matches.value_of("CONFIG").unwrap_or("slapper.json");
 
     match matches.subcommand() {
         ("hit", Some(matches)) => {
@@ -42,14 +45,17 @@ fn main() {
                 project,
                 &project.environments[environment_name],
                 &project.endpoints[endpoint_name],
-                url_values.map(|x| String::from(x)).collect::<Vec<_>>(),
+                url_values.map(String::from).collect::<Vec<_>>(),
             );
             println!("{}", result);
         }
         ("write", _) => {
             let projects = config::get_projects();
-            let serialized = toml::to_string_pretty(&projects).unwrap();
-            println!("{}", serialized);
+            let serialized = serde_json::to_string_pretty(&projects).unwrap();
+            File::create(config_file)
+                .expect("could not open file for writing")
+                .write_all(serialized.as_bytes())
+                .expect("could not write to file");
         }
         _ => {}
     }
@@ -64,13 +70,11 @@ mod config {
 
     #[derive(Serialize, Deserialize)]
     pub struct Config {
-        pub some_value: String,
         pub projects: HashMap<String, Project>,
     }
 
     pub fn get_projects() -> Config {
         Config {
-            some_value: String::from("String"),
             projects: HashMap::from_iter(vec![
                 (
                     String::from("project1"),

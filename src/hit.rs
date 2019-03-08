@@ -1,5 +1,6 @@
 use reqwest;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use url::Url;
 
 #[derive(Serialize, Deserialize)]
@@ -24,15 +25,23 @@ pub enum Auth {
 
 #[derive(Serialize, Deserialize)]
 pub struct Endpoint {
-    pub name: String,
-
-    pub url: String,
+    pub url_path: String,
 
     #[serde(default = "method_default", skip_serializing_if = "skip_if_get")]
     pub method: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<Auth>,
+}
+
+impl Endpoint {
+    pub fn new(url_path: &str) -> Self {
+        Self {
+            url_path: url_path.to_owned(),
+            method: method_default(),
+            auth: None,
+        }
+    }
 }
 
 fn method_default() -> String {
@@ -45,8 +54,6 @@ fn skip_if_get(value: &str) -> bool {
 
 #[derive(Serialize, Deserialize)]
 pub struct Environment {
-    pub name: String,
-
     #[serde(with = "url_serde")]
     pub base_url: Url,
 
@@ -54,20 +61,69 @@ pub struct Environment {
     pub auth: Option<Auth>,
 }
 
+impl Environment {
+    pub fn new(base_url: Url) -> Self {
+        Self {
+            base_url,
+            auth: None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Project {
-    pub name: String,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<Auth>,
 
-    pub environments: Vec<Environment>,
+    pub environments: HashMap<String, Environment>,
 
-    pub endpoints: Vec<Endpoint>,
+    pub endpoints: HashMap<String, Endpoint>,
+}
+
+impl Project {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn from_full<IEnvironment, IEndpoint>(
+        auth: Option<Auth>,
+        environments: IEnvironment,
+        endpoints: IEndpoint,
+    ) -> Self
+    where
+        IEnvironment: IntoIterator<Item = (String, Environment)>,
+        IEndpoint: IntoIterator<Item = (String, Endpoint)>,
+    {
+        let mut env_map = HashMap::new();
+        for (k, v) in environments {
+            env_map.insert(k, v);
+        }
+
+        let mut end_map = HashMap::new();
+        for (k, v) in endpoints {
+            end_map.insert(k, v);
+        }
+
+        Self {
+            auth,
+            environments: env_map,
+            endpoints: end_map,
+        }
+    }
+}
+
+impl Default for Project {
+    fn default() -> Self {
+        Self {
+            auth: None,
+            environments: HashMap::new(),
+            endpoints: HashMap::new(),
+        }
+    }
 }
 
 pub fn do_request(
-    projects: &[Project],
+    projects: &HashMap<String, Project>,
     project_name: &str,
     env_name: &str,
     endpoint_name: &str,
@@ -80,17 +136,9 @@ pub fn do_request(
 
     // TODO Handle errors.
     let start_time = Instant::now();
-    let project = projects.iter().find(|&p| p.name == project_name).unwrap();
-    let environment = project
-        .environments
-        .iter()
-        .find(|&e| e.name == env_name)
-        .unwrap();
-    let endpoint = project
-        .endpoints
-        .iter()
-        .find(|&e| e.name == endpoint_name)
-        .unwrap();
+    let project = &projects[project_name];
+    let environment = &project.environments[env_name];
+    let endpoint = &project.endpoints[endpoint_name];
 
     let auth = match endpoint.auth {
         Some(Auth::Inherit) => match environment.auth {
@@ -100,7 +148,7 @@ pub fn do_request(
         _ => &endpoint.auth,
     };
 
-    let url = environment.base_url.join(&endpoint.url).unwrap();
+    let url = environment.base_url.join(&endpoint.url_path).unwrap();
     let method = Method::from_str(&endpoint.method).unwrap_or_default();
     let client = Client::new();
 

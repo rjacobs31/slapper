@@ -32,10 +32,10 @@ fn main() {
             let project_name = matches.value_of("PROJECT").unwrap();
             let environment_name = matches.value_of("ENVIRONMENT").unwrap();
             let endpoint_name = matches.value_of("ENDPOINT").unwrap();
-            let projects = config::get_projects().projects;
+            let conf = config::get_projects();
 
             let result = hit::do_request(
-                projects.as_slice(),
+                &conf.projects,
                 project_name,
                 environment_name,
                 endpoint_name,
@@ -44,7 +44,7 @@ fn main() {
         }
         ("write", _) => {
             let projects = config::get_projects();
-            let serialized = serde_json::to_string_pretty(&projects).unwrap();
+            let serialized = toml::to_string_pretty(&projects).unwrap();
             println!("{}", serialized);
         }
         _ => {}
@@ -54,47 +54,43 @@ fn main() {
 mod config {
     use crate::hit::{Endpoint, Environment, Project};
     use serde::{Deserialize, Serialize};
+    use std::collections::HashMap;
+    use std::iter::FromIterator;
     use url::Url;
 
     #[derive(Serialize, Deserialize)]
     pub struct Config {
-        pub projects: Vec<Project>,
+        pub some_value: String,
+        pub projects: HashMap<String, Project>,
     }
 
     pub fn get_projects() -> Config {
         Config {
-            projects: vec![
-                Project {
-                    name: "project1".into(),
-                    auth: None,
-                    environments: vec![Environment {
-                        name: "dev".into(),
-                        auth: None,
-                        base_url: Url::parse("http://localhost:8000").unwrap(),
-                    }],
-                    endpoints: vec![Endpoint {
-                        name: "some_object".into(),
-                        auth: None,
-                        method: "GET".into(),
-                        url: "/".into(),
-                    }],
-                },
-                Project {
-                    name: "project2".into(),
-                    auth: None,
-                    environments: vec![Environment {
-                        name: "dev".into(),
-                        auth: None,
-                        base_url: Url::parse("http://localhost:8000").unwrap(),
-                    }],
-                    endpoints: vec![Endpoint {
-                        name: "some_other_object".into(),
-                        auth: None,
-                        method: "POST".into(),
-                        url: "/".into(),
-                    }],
-                },
-            ],
+            some_value: String::from("String"),
+            projects: HashMap::from_iter(vec![
+                (
+                    String::from("project1"),
+                    Project::from_full(
+                        None,
+                        vec![(
+                            String::from("dev"),
+                            Environment::new(Url::parse("http://localhost:8000").unwrap()),
+                        )],
+                        vec![(String::from("some_object"), Endpoint::new("/"))],
+                    ),
+                ),
+                (
+                    String::from("project2"),
+                    Project::from_full(
+                        None,
+                        vec![(
+                            String::from("dev"),
+                            Environment::new(Url::parse("http://localhost:8000").unwrap()),
+                        )],
+                        vec![(String::from("some_other_object"), Endpoint::new("/"))],
+                    ),
+                ),
+            ]),
         }
     }
 }

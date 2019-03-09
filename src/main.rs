@@ -4,8 +4,10 @@ extern crate clap;
 mod hit;
 mod parse;
 
+use config::Config;
 use std::fs::File;
-use std::io::Write;
+use std::io::prelude::*;
+use std::io::{BufReader, Write};
 
 fn main() {
     let matches = clap_app!(slapper =>
@@ -38,7 +40,16 @@ fn main() {
             let environment_name = matches.value_of("ENVIRONMENT").unwrap();
             let endpoint_name = matches.value_of("ENDPOINT").unwrap();
             let url_values = matches.values_of("URL_VALUES").unwrap_or_default();
-            let conf = config::get_projects();
+
+            let conf = if let Ok(f) = File::open(config_file).map(BufReader::new) {
+                serde_json::from_reader::<_, Config>(f).unwrap_or_else(|_| {
+                    println!("could not read config file");
+                    config::get_projects()
+                })
+            } else {
+                println!("could not open config file");
+                config::get_projects()
+            };
 
             let project = &conf.projects[project_name];
             let result = hit::do_request(

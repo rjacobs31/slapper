@@ -1,126 +1,11 @@
-use reqwest;
-use serde::{Deserialize, Serialize};
+use crate::parse::SubstitutingUrl;
+use crate::project::{Auth, Endpoint, Environment, Project};
+use http::header::CONTENT_TYPE;
+use reqwest::{self, Client, Method};
+use serde_json::Value;
 use std::collections::HashMap;
-use url::Url;
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "values")]
-pub enum Auth {
-    Inherit,
-    ClientCredentials {
-        authority: String,
-
-        client_id: String,
-
-        client_secret: String,
-
-        grant_type: String,
-
-        resource: String,
-
-        #[serde(skip_serializing_if = "Option::is_none")]
-        scopes: Option<String>,
-    },
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Endpoint {
-    pub url_path: String,
-
-    #[serde(default = "method_default", skip_serializing_if = "skip_if_get")]
-    pub method: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth>,
-}
-
-impl Endpoint {
-    pub fn new(url_path: &str) -> Self {
-        Self {
-            url_path: url_path.to_owned(),
-            method: method_default(),
-            auth: None,
-        }
-    }
-}
-
-fn method_default() -> String {
-    "GET".into()
-}
-
-fn skip_if_get(value: &str) -> bool {
-    value.is_empty() || value.to_uppercase() == "GET"
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Environment {
-    #[serde(with = "url_serde")]
-    pub base_url: Url,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth>,
-}
-
-impl Environment {
-    pub fn new(base_url: Url) -> Self {
-        Self {
-            base_url,
-            auth: None,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Project {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<Auth>,
-
-    pub environments: HashMap<String, Environment>,
-
-    pub endpoints: HashMap<String, Endpoint>,
-}
-
-impl Project {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn from_full<IEnvironment, IEndpoint>(
-        auth: Option<Auth>,
-        environments: IEnvironment,
-        endpoints: IEndpoint,
-    ) -> Self
-    where
-        IEnvironment: IntoIterator<Item = (String, Environment)>,
-        IEndpoint: IntoIterator<Item = (String, Endpoint)>,
-    {
-        let mut env_map = HashMap::new();
-        for (k, v) in environments {
-            env_map.insert(k, v);
-        }
-
-        let mut end_map = HashMap::new();
-        for (k, v) in endpoints {
-            end_map.insert(k, v);
-        }
-
-        Self {
-            auth,
-            environments: env_map,
-            endpoints: end_map,
-        }
-    }
-}
-
-impl Default for Project {
-    fn default() -> Self {
-        Self {
-            auth: None,
-            environments: HashMap::new(),
-            endpoints: HashMap::new(),
-        }
-    }
-}
+use std::str::FromStr;
+use std::time::Instant;
 
 pub fn do_request<I>(
     project: &Project,
@@ -131,13 +16,6 @@ pub fn do_request<I>(
 where
     I: IntoIterator<Item = String>,
 {
-    use crate::parse::SubstitutingUrl;
-    use http::header::CONTENT_TYPE;
-    use reqwest::{Client, Method};
-    use serde_json::Value;
-    use std::str::FromStr;
-    use std::time::Instant;
-
     // TODO Handle errors.
     let start_time = Instant::now();
 
@@ -216,9 +94,6 @@ fn get_client_credentials_token<'a>(
     grant_type: &'a str,
     resource: &'a str,
 ) -> Option<String> {
-    use reqwest::Client;
-    use std::collections::HashMap;
-
     let params = &[
         ("client_id", client_id),
         ("client_secret", client_secret),
@@ -236,47 +111,4 @@ fn get_client_credentials_token<'a>(
         .unwrap()
         .get("access_token")
         .map(|t| (*t).clone())
-}
-
-mod url_serde {
-    use serde::{
-        de::{self, Visitor},
-        Deserializer, Serializer,
-    };
-    use std::fmt;
-    use url::Url;
-
-    struct UrlVisitor;
-
-    impl<'de> Visitor<'de> for UrlVisitor {
-        type Value = Url;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a string value to parse as URL")
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            match Url::parse(value) {
-                Ok(parsed) => Ok(parsed),
-                Err(_) => Err(E::custom(format!("could not parse URL: {}", value))),
-            }
-        }
-    }
-
-    pub fn serialize<S>(url: &Url, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(url.as_str())
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Url, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_str(UrlVisitor)
-    }
 }

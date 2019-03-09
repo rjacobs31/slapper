@@ -3,6 +3,7 @@ extern crate clap;
 
 mod hit;
 mod parse;
+mod project;
 
 use config::Config;
 use std::fs::File;
@@ -73,7 +74,7 @@ fn main() {
 }
 
 mod config {
-    use crate::hit::{Endpoint, Environment, Project};
+    use crate::project::{Endpoint, Environment, Project};
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use std::iter::FromIterator;

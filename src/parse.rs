@@ -77,6 +77,7 @@ impl SubstitutingUrl {
     ) -> Result<Cow<str>, SubstitutionError> {
         let mut result = String::from("");
 
+        let mut position = 0usize;
         for segment in &self.segments {
             match segment {
                 SubstitutingSegment::Plain(plain) => {
@@ -90,8 +91,12 @@ impl SubstitutingUrl {
                             .write_str(&val)
                             .expect("unknown error when writing parsed URL");
                     } else {
-                        return Err(SubstitutionError::NoSuchVariable(name.clone()));
+                        return Err(SubstitutionError::MissingParameter {
+                            name: name.clone(),
+                            position,
+                        });
                     }
+                    position += 1;
                 }
             }
         }
@@ -125,6 +130,7 @@ impl SubstitutingUrl {
         let mut result = String::from("");
         let mut values = values.iter().rev();
 
+        let mut position = 0usize;
         for segment in &self.segments {
             match segment {
                 SubstitutingSegment::Plain(plain) => {
@@ -138,8 +144,12 @@ impl SubstitutingUrl {
                             .write_str(&val)
                             .expect("unknown error when writing parsed URL");
                     } else {
-                        return Err(SubstitutionError::NoSuchVariable(name.clone()));
+                        return Err(SubstitutionError::MissingParameter {
+                            name: name.clone(),
+                            position,
+                        });
                     }
+                    position += 1;
                 }
             }
         }
@@ -206,6 +216,6 @@ pub enum ParseError {
 
 #[derive(Debug)]
 pub enum SubstitutionError {
-    NoSuchVariable(String),
+    MissingParameter { name: String, position: usize },
     WrongNumberVariables { expected: usize, found: usize },
 }

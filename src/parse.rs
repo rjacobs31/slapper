@@ -92,6 +92,7 @@ impl SubstitutingUrl {
                             .expect("unknown error when writing parsed URL");
                     } else {
                         return Err(SubstitutionError::MissingParameter {
+                            url: self.to_repr().into(),
                             name: name.clone(),
                             position,
                         });
@@ -145,6 +146,7 @@ impl SubstitutingUrl {
                             .expect("unknown error when writing parsed URL");
                     } else {
                         return Err(SubstitutionError::MissingParameter {
+                            url: self.to_repr().into(),
                             name: name.clone(),
                             position,
                         });
@@ -155,6 +157,21 @@ impl SubstitutingUrl {
         }
 
         Ok(result.into())
+    }
+
+    pub fn to_repr(&self) -> Cow<str> {
+        let mut result = String::new();
+        for s in &self.segments {
+            match s {
+                SubstitutingSegment::Plain(text) => result
+                    .write_str(&text)
+                    .expect("unknown error when writing plain repr"),
+                SubstitutingSegment::Variable(name) => {
+                    write!(&mut result, "{{{}}}", &name).expect("unknown error when writing name")
+                }
+            }
+        }
+        result.into()
     }
 }
 
@@ -216,6 +233,13 @@ pub enum ParseError {
 
 #[derive(Debug)]
 pub enum SubstitutionError {
-    MissingParameter { name: String, position: usize },
-    WrongNumberVariables { expected: usize, found: usize },
+    MissingParameter {
+        url: String,
+        name: String,
+        position: usize,
+    },
+    WrongNumberVariables {
+        expected: usize,
+        found: usize,
+    },
 }

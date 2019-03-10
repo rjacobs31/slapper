@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Write;
+use std::iter::DoubleEndedIterator;
 use std::str::FromStr;
 
 enum SubstitutingSegment {
@@ -107,29 +108,10 @@ impl SubstitutingUrl {
 
     pub fn sub_by_index<I>(&self, values: I) -> Result<Cow<str>, SubstitutionError>
     where
-        I: IntoIterator<Item = String>,
+        I: DoubleEndedIterator<Item = String>,
     {
-        use std::iter::FromIterator;
-
-        let var_count = self
-            .segments
-            .iter()
-            .filter(|x| match x {
-                SubstitutingSegment::Variable(_) => true,
-                _ => false,
-            })
-            .count();
-        let values = Vec::from_iter(values);
-        let val_count = values.len();
-        if val_count < var_count {
-            return Err(SubstitutionError::WrongNumberVariables {
-                expected: var_count,
-                found: val_count,
-            });
-        }
-
-        let mut result = String::from("");
-        let mut values = values.iter().rev();
+        let mut result = String::new();
+        let mut values = values.rev();
 
         let mut position = 0usize;
         for segment in &self.segments {

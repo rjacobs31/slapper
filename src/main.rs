@@ -57,7 +57,7 @@ fn main() {
                 project,
                 &project.environments[environment_name],
                 &project.endpoints[endpoint_name],
-                url_values.map(String::from).collect::<Vec<_>>(),
+                url_values.map(String::from).collect::<Vec<_>>().into_iter(),
             );
             println!("{}", result);
         }

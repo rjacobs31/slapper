@@ -14,7 +14,7 @@ pub fn do_request<I>(
     url_values: I,
 ) -> String
 where
-    I: IntoIterator<Item = String>,
+    I: DoubleEndedIterator<Item = String>,
 {
     // TODO Handle errors.
     let start_time = Instant::now();

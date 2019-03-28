@@ -32,14 +32,14 @@ where
         .sub_by_index(url_values)
         .expect("could not sub variables");
     println!("{}", subbed_path);
-    let url = environment
+    let url = &environment
         .base_url
         .join(&subbed_path)
         .expect("could not join path to URL");
     let method = Method::from_str(&endpoint.method).unwrap_or_default();
     let client = Client::new();
 
-    let mut request = client.request(method, url);
+    let mut request = client.request(method, url.clone());
     request = match auth {
         Some(Auth::ClientCredentials {
             authority,
@@ -67,12 +67,17 @@ where
     let request_end_time = Instant::now();
     println!(
         r#"
-============================
-auth duration: {} ms
-request duration: {} ms
-----------------------------
-total: {} ms
-============================"#,
+=================================
+url:    {0}
+status: {1}
+=================================
+auth duration:    {2:>12} ms
+request duration: {3:>12} ms
+---------------------------------
+total:            {4:>12} ms
+================================="#,
+        url,
+        response.status(),
         auth_end_time.duration_since(start_time).as_millis(),
         request_end_time.duration_since(auth_end_time).as_millis(),
         request_end_time.duration_since(start_time).as_millis()

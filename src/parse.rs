@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use std::iter::DoubleEndedIterator;
 use std::str::FromStr;
 
@@ -82,15 +82,11 @@ impl SubstitutingUrl {
         for segment in &self.segments {
             match segment {
                 SubstitutingSegment::Plain(plain) => {
-                    result
-                        .write_str(&plain)
-                        .expect("unknown error when writing parsed URL");
+                    result.write_str(&plain)?;
                 }
                 SubstitutingSegment::Variable(name) => {
                     if let Some(val) = values.get(name) {
-                        result
-                            .write_str(&val)
-                            .expect("unknown error when writing parsed URL");
+                        result.write_str(&val)?;
                     } else {
                         return Err(SubstitutionError::MissingParameter {
                             url: self.to_repr().into(),
@@ -117,22 +113,18 @@ impl SubstitutingUrl {
         for segment in &self.segments {
             match segment {
                 SubstitutingSegment::Plain(plain) => {
-                    result
-                        .write_str(&plain)
-                        .expect("unknown error when writing parsed URL");
+                    result.write_str(&plain)?;
                 }
                 SubstitutingSegment::Variable(name) => {
-                    if let Some(val) = values.next() {
-                        result
-                            .write_str(&val)
-                            .expect("unknown error when writing parsed URL");
-                    } else {
-                        return Err(SubstitutionError::MissingParameter {
+                    let val = values
+                        .next()
+                        .ok_or_else(|| SubstitutionError::MissingParameter {
                             url: self.to_repr().into(),
                             name: name.clone(),
                             position,
-                        });
-                    }
+                        })?;
+
+                    result.write_str(&val)?;
                     position += 1;
                 }
             }
@@ -220,8 +212,22 @@ pub enum SubstitutionError {
         name: String,
         position: usize,
     },
-    WrongNumberVariables {
-        expected: usize,
-        found: usize,
-    },
+    WriteError(fmt::Error),
+}
+
+impl fmt::Display for SubstitutionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SubstitutionError::MissingParameter { name, position, .. } => f.write_fmt(
+                format_args!("Missing parameter \"{}\" at position {}", name, position),
+            ),
+            SubstitutionError::WriteError(_) => f.write_str("Error writing output"),
+        }
+    }
+}
+
+impl From<fmt::Error> for SubstitutionError {
+    fn from(error: fmt::Error) -> Self {
+        SubstitutionError::WriteError(error)
+    }
 }

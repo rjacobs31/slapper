@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate clap;
 
+#[macro_use]
+extern crate failure;
+
 mod hit;
 mod parse;
 mod project;

@@ -1,3 +1,4 @@
+use failure::Fail;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{self, Write};
@@ -199,31 +200,24 @@ mod url_replace_tests {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum ParseError {
+    #[fail(display = "parsed tag name empty")]
     EmptyName,
+    #[fail(display = "parsed tag unterminated")]
     UnterminatedVariableTag,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum SubstitutionError {
+    #[fail(display = "missing parameter {{{}}} at position {}", name, position)]
     MissingParameter {
         url: String,
         name: String,
         position: usize,
     },
-    WriteError(fmt::Error),
-}
-
-impl fmt::Display for SubstitutionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            SubstitutionError::MissingParameter { name, position, .. } => f.write_fmt(
-                format_args!("Missing parameter \"{}\" at position {}", name, position),
-            ),
-            SubstitutionError::WriteError(_) => f.write_str("Error writing output"),
-        }
-    }
+    #[fail(display = "{}", _0)]
+    WriteError(#[fail(cause)] fmt::Error),
 }
 
 impl From<fmt::Error> for SubstitutionError {

@@ -31,7 +31,6 @@ where
     let subbed_path = parsed_path
         .sub_by_index(url_values)
         .expect("could not sub variables");
-    println!("{}", subbed_path);
     let url = &environment
         .base_url
         .join(&subbed_path)

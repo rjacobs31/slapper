@@ -40,7 +40,7 @@ impl Endpoint {
         Self {
             url_path: url_path.to_owned(),
             method: method_default(),
-            auth: None,
+            auth: Some(Auth::Inherit),
         }
     }
 }
@@ -66,7 +66,14 @@ impl Environment {
     pub fn new(base_url: Url) -> Self {
         Self {
             base_url,
-            auth: None,
+            auth: Some(Auth::Inherit),
+        }
+    }
+
+    pub fn with_auth(base_url: Url, auth: Auth) -> Self {
+        Self {
+            base_url,
+            auth: Some(auth),
         }
     }
 }

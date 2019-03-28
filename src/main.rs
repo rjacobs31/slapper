@@ -42,19 +42,21 @@ fn main() {
             let endpoint_name = matches.value_of("ENDPOINT").unwrap();
             let url_values = matches.values_of("URL_VALUES").unwrap_or_default();
 
-            let conf = if let Ok(f) = File::open(config_file).map(BufReader::new) {
-                serde_json::from_reader::<_, Config>(f).unwrap_or_else(|_| {
-                    println!("could not read config file");
-                    config::get_projects()
-                })
+            let projects = if let Ok(f) = File::open(config_file).map(BufReader::new) {
+                serde_json::from_reader::<_, Config>(f)
+                    .map(|c| c.projects)
+                    .unwrap_or_else(|_| {
+                        println!("could not read config file");
+                        config::get_projects()
+                    })
             } else {
                 println!("could not open config file");
                 config::get_projects()
             };
 
-            let project = &conf.projects[project_name];
+            let project = &projects[project_name];
             let result = hit::do_request(
-                project,
+                &project,
                 &project.environments[environment_name],
                 &project.endpoints[endpoint_name],
                 url_values.map(String::from).collect::<Vec<_>>().into_iter(),
@@ -74,7 +76,7 @@ fn main() {
 }
 
 mod config {
-    use crate::project::{Endpoint, Environment, Project};
+    use crate::project::{Endpoint, Environment, Project, ProjectMap};
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
     use std::iter::FromIterator;
@@ -85,32 +87,30 @@ mod config {
         pub projects: HashMap<String, Project>,
     }
 
-    pub fn get_projects() -> Config {
-        Config {
-            projects: HashMap::from_iter(vec![
-                (
-                    String::from("project1"),
-                    Project::from_full(
-                        None,
-                        vec![(
-                            String::from("dev"),
-                            Environment::new(Url::parse("http://localhost:8000").unwrap()),
-                        )],
-                        vec![(String::from("some_object"), Endpoint::new("/{blah}"))],
-                    ),
+    pub fn get_projects() -> ProjectMap {
+        HashMap::from_iter(vec![
+            (
+                String::from("project1"),
+                Project::from_full(
+                    None,
+                    vec![(
+                        String::from("dev"),
+                        Environment::new(Url::parse("http://localhost:8000").unwrap()),
+                    )],
+                    vec![(String::from("some_object"), Endpoint::new("/{blah}"))],
                 ),
-                (
-                    String::from("project2"),
-                    Project::from_full(
-                        None,
-                        vec![(
-                            String::from("dev"),
-                            Environment::new(Url::parse("http://localhost:8000").unwrap()),
-                        )],
-                        vec![(String::from("some_other_object"), Endpoint::new("/"))],
-                    ),
+            ),
+            (
+                String::from("project2"),
+                Project::from_full(
+                    None,
+                    vec![(
+                        String::from("dev"),
+                        Environment::new(Url::parse("http://localhost:8000").unwrap()),
+                    )],
+                    vec![(String::from("some_other_object"), Endpoint::new("/"))],
                 ),
-            ]),
-        }
+            ),
+        ])
     }
 }

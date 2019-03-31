@@ -5,11 +5,13 @@ use std::fmt::{self, Write};
 use std::iter::DoubleEndedIterator;
 use std::str::FromStr;
 
+#[derive(Debug, Clone)]
 enum SubstitutingSegment {
     Plain(String),
     Variable(String),
 }
 
+#[derive(Debug, Clone)]
 pub struct SubstitutingUrl {
     segments: Vec<SubstitutingSegment>,
 }

@@ -4,7 +4,7 @@ use url::Url;
 
 pub type ProjectMap = HashMap<String, Project>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "values")]
 pub enum Auth {
     Inherit,
@@ -24,7 +24,7 @@ pub enum Auth {
     },
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Endpoint {
     pub url_path: String,
 
@@ -53,7 +53,7 @@ fn skip_if_get(value: &str) -> bool {
     value.is_empty() || value.to_uppercase() == "GET"
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Environment {
     #[serde(with = "url_serde")]
     pub base_url: Url,
@@ -78,7 +78,7 @@ impl Environment {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<Auth>,

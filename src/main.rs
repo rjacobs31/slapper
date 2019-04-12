@@ -24,9 +24,13 @@ fn main() {
             (@arg CUSTOM: --custom +takes_value conflicts_with[ENDPOINT] "A custom path to hit")
             (@arg METHOD: -m --method +takes_value "The HTTP method to use")
             (@arg MEDIA: --media +takes_value "The media type of the request")
+            (@arg HEADER: --header +takes_value {validate_header} ... "Additional headers (e.g. \"subscription-key: 1234\"")
             (@arg DATA: -d --data +takes_value "The body of the request")
             (@arg DATA_FILE: --("data-file") +takes_value conflicts_with[DATA] "File to read data from")
             (@arg URL_VALUES: ... "Variable values to pass to parsed URL")
+        )
+        (@subcommand list =>
+            (about: "Lists projects, environments, and endpoints")
         )
         (@subcommand write =>
             (about: "Writes a config file")
@@ -72,6 +76,14 @@ fn main() {
                 .expect("could not write to file");
         }
         _ => {}
+    }
+}
+
+fn validate_header(header: String) -> Result<(), String> {
+    let h = header.as_str();
+    match h.find(':') {
+        Some(pos) if (0 < pos && pos < (h.len() - 1)) => Ok(()),
+        _ => Err("no value after header key".into()),
     }
 }
 

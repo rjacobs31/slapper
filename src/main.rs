@@ -1,74 +1,44 @@
-#[macro_use]
-extern crate clap;
-
+mod config;
 mod hit;
 mod parse;
 mod project;
 
-use config::Config;
+use crate::config::Config;
+use crate::hit::process_hit_subcommand;
+use clap::{App, Arg, SubCommand};
+use hit::get_hit_subcommand;
 use std::fs::File;
-use std::io::prelude::*;
-use std::io::{BufReader, Write};
+use std::io::Write;
 
 fn main() {
-    let matches = clap_app!(slapper =>
-        (version: "0.1.0")
-        (author: "R. Jacobs")
-        (about: "Hits endpoints")
-        (@arg CONFIG: -c --config +takes_value "Sets a custom config file")
-        (@subcommand hit =>
-            (about: "Hits an endpoint in a specific project and environment")
-            (@arg PROJECT: +required "The project to load")
-            (@arg ENVIRONMENT: +required "The environment to load")
-            (@arg ENDPOINT: "The named endpoint to hit")
-            (@arg CUSTOM: --custom +takes_value conflicts_with[ENDPOINT] "A custom path to hit")
-            (@arg METHOD: -m --method +takes_value "The HTTP method to use")
-            (@arg MEDIA: --media +takes_value "The media type of the request")
-            (@arg HEADER: --header +takes_value {validate_header} ... "Additional headers (e.g. \"subscription-key: 1234\"")
-            (@arg DATA: -d --data +takes_value "The body of the request")
-            (@arg DATA_FILE: --("data-file") +takes_value conflicts_with[DATA] "File to read data from")
-            (@arg URL_VALUES: ... "Variable values to pass to parsed URL")
+    let matches = App::new("slapper")
+        .version("0.1.0")
+        .author("R. Jacobs")
+        .about("Hits endpoints")
+        .arg(
+            Arg::with_name("CONFIG")
+                .short("c")
+                .long("config")
+                .global(true)
+                .takes_value(true)
+                .help("Sets a custom config file"),
         )
-        (@subcommand list =>
-            (about: "Lists projects, environments, and endpoints")
+        .subcommand(get_hit_subcommand())
+        .subcommand(
+            SubCommand::with_name("list").about("Lists projects, environments, and endpoints"),
         )
-        (@subcommand write =>
-            (about: "Writes a config file")
-        )
-    ).get_matches();
+        .subcommand(SubCommand::with_name("write").about("Writes a config file"))
+        .get_matches();
 
     let config_file = matches.value_of("CONFIG").unwrap_or("slapper.json");
+    let config = Config::from_file(config_file).expect("could not load config");
 
     match matches.subcommand() {
         ("hit", Some(matches)) => {
-            let project_name = matches.value_of("PROJECT").unwrap();
-            let environment_name = matches.value_of("ENVIRONMENT").unwrap();
-            let endpoint_name = matches.value_of("ENDPOINT").unwrap();
-            let url_values = matches.values_of("URL_VALUES").unwrap_or_default();
-
-            let projects = if let Ok(f) = File::open(config_file).map(BufReader::new) {
-                serde_json::from_reader::<_, Config>(f)
-                    .map(|c| c.projects)
-                    .unwrap_or_else(|_| {
-                        println!("could not read config file");
-                        config::get_projects()
-                    })
-            } else {
-                println!("could not open config file");
-                config::get_projects()
-            };
-
-            let project = &projects[project_name];
-            let result = hit::do_request(
-                &project,
-                &project.environments[environment_name],
-                &project.endpoints[endpoint_name],
-                url_values.map(String::from).collect::<Vec<_>>().into_iter(),
-            );
-            println!("{}", result);
+            process_hit_subcommand(matches, config);
         }
         ("write", _) => {
-            let projects = config::get_projects();
+            let projects = config::get_example_config().projects;
             let serialized = serde_json::to_string_pretty(&projects).unwrap();
             File::create(config_file)
                 .expect("could not open file for writing")
@@ -76,53 +46,5 @@ fn main() {
                 .expect("could not write to file");
         }
         _ => {}
-    }
-}
-
-fn validate_header(header: String) -> Result<(), String> {
-    let h = header.as_str();
-    match h.find(':') {
-        Some(pos) if (0 < pos && pos < (h.len() - 1)) => Ok(()),
-        _ => Err("no value after header key".into()),
-    }
-}
-
-mod config {
-    use crate::project::{Endpoint, Environment, Project, ProjectMap};
-    use serde::{Deserialize, Serialize};
-    use std::collections::HashMap;
-    use std::iter::FromIterator;
-    use url::Url;
-
-    #[derive(Serialize, Deserialize)]
-    pub struct Config {
-        pub projects: HashMap<String, Project>,
-    }
-
-    pub fn get_projects() -> ProjectMap {
-        HashMap::from_iter(vec![
-            (
-                String::from("project1"),
-                Project::from_full(
-                    None,
-                    vec![(
-                        String::from("dev"),
-                        Environment::new(Url::parse("http://localhost:8000").unwrap()),
-                    )],
-                    vec![(String::from("some_object"), Endpoint::new("/{blah}"))],
-                ),
-            ),
-            (
-                String::from("project2"),
-                Project::from_full(
-                    None,
-                    vec![(
-                        String::from("dev"),
-                        Environment::new(Url::parse("http://localhost:8000").unwrap()),
-                    )],
-                    vec![(String::from("some_other_object"), Endpoint::new("/"))],
-                ),
-            ),
-        ])
     }
 }
